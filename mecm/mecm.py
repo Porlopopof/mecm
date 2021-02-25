@@ -25,7 +25,7 @@ class MECM:
 
     def __init__(self, y, mask, a_mat, psd_cls, eps=1e-3, p=20,
                  nd=10, nit_cg=1000, tol_cg=1e-4, pcg_algo='scipy',
-                 mask0=None):
+                 mask0=None, windowing='hanning'):
 
         self.y = y
         self.mask = mask
@@ -44,7 +44,14 @@ class MECM:
         # Physical model in the frequency domain
         # ----------------------------------------------------------------------
         # Apodization
-        self.wd = np.hanning(self.n_data)
+        if windowing is None:
+            self.wd = np.ones(self.n_data)
+        elif windowing == 'hanning':
+            self.wd = np.hanning(self.n_data)
+        elif windowing == 'blackman':
+            self.wd = np.blackman(self.n_data)
+        else:
+            raise ValueError("Unknown windowing")
 
         self.psd_cls = psd_cls
         self.eps = eps
@@ -279,7 +286,7 @@ class MECM:
 
 def maxlike(y, mask, a_mat, n_it_max=15, eps=1e-3, p=20, nd=10, n_est=100,
             nit_cg=1000, tol_cg=1e-4, compute_cov=True, verbose=True,
-            pcg_algo='scipy', psd_cls=None, mask0=None):
+            pcg_algo='scipy', psd_cls=None, mask0=None, windowing='hanning'):
     """
 
     Function estimating the regression parameters for a problem of
@@ -327,6 +334,9 @@ def maxlike(y, mask, a_mat, n_it_max=15, eps=1e-3, p=20, nd=10, n_est=100,
         initial mask vector (with entries equal to 0 or 1), to use for the
         initialization only. Should be less conservative (less dense) than
         the regular mask.
+    windowing : str or None
+        Apodisation window to apply in {'hanning', 'blackman'}. If None, no
+        special windowing is applied (rectangular).
 
     Returns
     -------
@@ -375,7 +385,7 @@ def maxlike(y, mask, a_mat, n_it_max=15, eps=1e-3, p=20, nd=10, n_est=100,
     # Intantiate ECM class
     ecm = MECM(y, mask, a_mat, psd_cls, eps=eps, p=p,
                nd=nd, nit_cg=nit_cg, tol_cg=tol_cg, pcg_algo=pcg_algo,
-               mask0=mask0)
+               mask0=mask0, windowing=windowing)
 
     # Run M-ECM iterations alternating betweeb E-steps and M-steps
     [ecm.ecm_step(verbose=verbose) for i in range(n_it_max)]
